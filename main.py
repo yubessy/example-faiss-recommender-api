@@ -5,10 +5,10 @@ from sklearn.decomposition import NMF
 from flask import Flask, jsonify
 
 RANDOM_STATE = 0
-N_FACTOR = 10
+N_FACTOR = 20
 N_RESULT = 10
 
-# データロード
+# load dataset
 ratings = numpy.loadtxt(
     "/movielens-small/ratings.csv",
     delimiter=",",
@@ -21,27 +21,28 @@ user_id2i = {id: i for i, id in enumerate(users)}
 movies = sorted(numpy.unique(ratings['movieId']))
 movie_id2i = {id: i for i, id in enumerate(movies)}
 movie_i2id = {i: id for i, id in enumerate(movies)}
-R = coo_matrix(
+
+# decompose
+rating_mat = coo_matrix(
     (ratings['rating'], (ratings['userId'].map(user_id2i.get),
                          ratings['movieId'].map(movie_id2i.get)))
 )
-
-# モデル学習
 model = NMF(n_components=N_FACTOR, init='random', random_state=RANDOM_STATE)
-U = model.fit_transform(R)
-I = model.components_.T
+user_mat = model.fit_transform(rating_mat)
+movie_mat = model.components_.T
 
-# インデックス作成
+# indexing
 movie_index = faiss.IndexFlatIP(N_FACTOR)
+movie_index.add(movie_mat)
 
-# Web API
+# web API
 app = Flask(__name__)
 
 
 @app.route("/users/<int:user_id>")
 def users(user_id):
     user_i = user_id2i[user_id]
-    user_vec = U[user_i]
+    user_vec = user_mat[user_i]
     scores, indices = movie_index.search(numpy.array([user_vec]), N_RESULT)
     item_scores = zip(indices[0], scores[0])
     return jsonify(
