@@ -10,8 +10,8 @@ N_RESULT = 10
 
 # load dataset
 ratings = numpy.loadtxt(
-    "/movielens-small/ratings.csv",
-    delimiter=",",
+    'movielens-small/ratings.csv',
+    delimiter=',',
     skiprows=1,
     usecols=(0, 1, 2),
     dtype=[('userId', 'i8'), ('movieId', 'i8'), ('rating', 'f8')],
@@ -22,29 +22,41 @@ movies = sorted(numpy.unique(ratings['movieId']))
 movie_id2i = {id: i for i, id in enumerate(movies)}
 movie_i2id = {i: id for i, id in enumerate(movies)}
 
-# decompose
+# make sparse matrix
 rating_mat = coo_matrix(
-    (ratings['rating'], (ratings['userId'].map(user_id2i.get),
-                         ratings['movieId'].map(movie_id2i.get)))
+    (ratings['rating'], (map(user_id2i.get, ratings['userId']),
+                         map(movie_id2i.get, ratings['movieId'])))
 )
+
+# decompose
 model = NMF(n_components=N_FACTOR, init='random', random_state=RANDOM_STATE)
 user_mat = model.fit_transform(rating_mat)
 movie_mat = model.components_.T
 
 # indexing
 movie_index = faiss.IndexFlatIP(N_FACTOR)
-movie_index.add(movie_mat)
+movie_index.add(movie_mat.astype('float32'))
 
-# web API
+# create APP
 app = Flask(__name__)
 
 
-@app.route("/users/<int:user_id>")
+# API endpoint
+@app.route('/user/<int:user_id>')
 def users(user_id):
     user_i = user_id2i[user_id]
-    user_vec = user_mat[user_i]
+    user_vec = user_mat[user_i].astype('float32')
     scores, indices = movie_index.search(numpy.array([user_vec]), N_RESULT)
     item_scores = zip(indices[0], scores[0])
     return jsonify(
-        items=[{"id": movie_i2id[i], "score": s} for i, s in item_scores],
+        items=[
+            {
+                "id": int(movie_i2id[i]),
+                "score": float(s),
+            }
+            for i, s in item_scores
+        ],
     )
+
+
+app.run(host="0.0.0.0", port=5000)
