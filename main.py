@@ -4,6 +4,7 @@ from scipy.sparse import coo_matrix
 from sklearn.decomposition import NMF
 from flask import Flask, jsonify
 
+# constants
 RANDOM_STATE = 0
 N_FACTOR = 20
 N_RESULT = 10
@@ -17,8 +18,10 @@ ratings = numpy.loadtxt(
     dtype=[('userId', 'i8'), ('movieId', 'i8'), ('rating', 'f8')],
 )
 users = sorted(numpy.unique(ratings['userId']))
-user_id2i = {id: i for i, id in enumerate(users)}
 movies = sorted(numpy.unique(ratings['movieId']))
+
+# for later use
+user_id2i = {id: i for i, id in enumerate(users)}
 movie_id2i = {id: i for i, id in enumerate(movies)}
 movie_i2id = {i: id for i, id in enumerate(movies)}
 
@@ -37,7 +40,7 @@ movie_mat = model.components_.T
 movie_index = faiss.IndexFlatIP(N_FACTOR)
 movie_index.add(movie_mat.astype('float32'))
 
-# create APP
+# create app
 app = Flask(__name__)
 
 
@@ -47,14 +50,14 @@ def users(user_id):
     user_i = user_id2i[user_id]
     user_vec = user_mat[user_i].astype('float32')
     scores, indices = movie_index.search(numpy.array([user_vec]), N_RESULT)
-    item_scores = zip(indices[0], scores[0])
+    movie_scores = zip(indices[0], scores[0])
     return jsonify(
         items=[
             {
                 "id": int(movie_i2id[i]),
                 "score": float(s),
             }
-            for i, s in item_scores
+            for i, s in movie_scores
         ],
     )
 
