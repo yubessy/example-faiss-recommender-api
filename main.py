@@ -52,7 +52,7 @@ def users(user_id):
     scores, indices = movie_index.search(numpy.array([user_vec]), N_RESULT)
     movie_scores = zip(indices[0], scores[0])
     return jsonify(
-        items=[
+        movies=[
             {
                 "id": int(movie_i2id[i]),
                 "score": float(s),
