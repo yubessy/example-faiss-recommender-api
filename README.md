@@ -1,4 +1,4 @@
-# faiss-recommender-api-example
+# example-faiss-recommender-api
 
 Example app using [facebookresearch/faiss](https://github.com/facebookresearch/faiss) inside web API for NMF based recommender system.
 
